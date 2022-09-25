@@ -13,7 +13,7 @@ hand-written digits, from 0-9.
 
 # Standard scientific Python imports
 import matplotlib.pyplot as plt
-
+import itertools
 # Import datasets, classifiers and performance metrics
 from sklearn import datasets, svm, metrics
 from sklearn.model_selection import train_test_split
@@ -31,6 +31,12 @@ from sklearn.model_selection import train_test_split
 #
 # Note: if we were working from image files (e.g., 'png' files), we would load
 # them using :func:`matplotlib.pyplot.imread`.
+
+#hyper parameters
+gamma = [0.0001, 0.001,0.06, 0.01, 0.02]
+C = [0.5, 0.8, 1, 1.5]
+
+h_params = list(itertools.product(gamma, C))
 
 digits = datasets.load_digits()
 
@@ -57,22 +63,54 @@ for ax, image, label in zip(axes, digits.images, digits.target):
 
 # flatten the images
 n_samples = len(digits.images)
+best_acc = 0
 data = digits.images.reshape((n_samples, -1))
+final_acc_list = []
+for h_param in h_params:
+    acc_val = []
+    # Create a classifier: a support vector classifier
+    clf = svm.SVC(gamma=0.001)
 
-# Create a classifier: a support vector classifier
-clf = svm.SVC(gamma=0.001)
+    # Split data into 50% train and 50% test subsets
+    x_train, x_split, y_train, y_split = train_test_split(
+    data, digits.target, test_size=0.7, shuffle=False
+    )
 
-# Split data into 50% train and 50% test subsets
-X_train, X_test, y_train, y_test = train_test_split(
-    data, digits.target, test_size=0.5, shuffle=False
-)
+    x_dev, x_test, y_dev, y_test = train_test_split(
+            x_split, y_split, test_size=0.7, shuffle=False
+        )
 
-# Learn the digits on the train subset
-clf.fit(X_train, y_train)
+    # Learn the digits on the train subset
+    clf.fit(x_train, y_train)
 
-# Predict the value of the digit on the test subset
-predicted = clf.predict(X_test)
+    # Predict the value of the digit on the train subset
+    predicted = clf.predict(x_train)
+    train_acc = metrics.accuracy_score(y_train, predicted)
+    acc_val.append(train_acc)
 
+
+    # Predict the value of the digit on the dev subset
+    predicted = clf.predict(x_dev)
+    dev_acc = metrics.accuracy_score(y_dev, predicted)
+    acc_val.append(dev_acc)
+
+    # Predict the value of the digit on the test subset
+    predicted = clf.predict(x_test)
+    test_acc = metrics.accuracy_score(y_test, predicted)
+    acc_val.append(test_acc)
+
+    if test_acc > best_acc:
+            best_acc = test_acc
+            best_clf = clf
+            report = metrics.classification_report(y_test, predicted)
+            best_h_param = h_param
+
+    final_acc_list.append(acc_val)
+for (h_param, i) in zip(h_params, final_acc_list):
+        print("Gamma= {0:<5} C={1:<5}  : {2:.2f}  {3:.2f}  {4:.2f}".format(h_param[0], h_param[1], i[0], i[1], i[2]))
+
+
+    
 ###############################################################################
 # Below we visualize the first 4 test samples and show their predicted
 # digit value in the title.
